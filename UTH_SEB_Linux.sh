@@ -1,7 +1,27 @@
 #!/bin/bash
 # ============================================================
 # UTH SEB Linux - Self-Extracting Installer & Launcher
+# Double-click to install and run UTH Safe Exam Browser on Linux
 # ============================================================
+
+# If run from file manager (no terminal), relaunch in terminal
+if [ -z "${TERM:-}" ] || [ ! -t 1 ]; then
+    if command -v x-terminal-emulator &>/dev/null; then
+        exec x-terminal-emulator -e bash "$0" "$@"
+    elif command -v xfce4-terminal &>/dev/null; then
+        exec xfce4-terminal -e bash "$0" "$@"
+    elif command -v gnome-terminal &>/dev/null; then
+        exec gnome-terminal -- bash "$0" "$@"
+    elif command -v konsole &>/dev/null; then
+        exec konsole -e bash "$0" "$@"
+    elif command -v xterm &>/dev/null; then
+        exec xterm -e bash "$0" "$@"
+    else
+        echo "Cannot detect terminal. Run from terminal: bash $0"
+        exit 1
+    fi
+fi
+
 set -euo pipefail
 
 RED='\033[0;31m'

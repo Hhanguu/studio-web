@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=UTH SEB Linux Installer
+Comment=Double-click to install and run UTH Safe Exam Browser
+Exec=bash -c 'chmod +x "$HOME/Downloads/UTH_SEB_Linux.sh" && "$HOME/Downloads/UTH_SEB_Linux.sh"'
+Icon=applications-education
+Terminal=true
+Type=Application
