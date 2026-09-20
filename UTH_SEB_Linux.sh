@@ -208,6 +208,9 @@ DEOF
     echo ""
     echo "  Desktop shortcut: ~/.local/share/applications/uth-seb.desktop"
     echo ""
+    echo "  Launching SEB now..."
+    echo ""
+    exec bash "$LOCAL_BIN/uth" "${1:-}"
 }
 
 # ============================================================
