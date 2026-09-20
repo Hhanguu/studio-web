@@ -1,7 +1,7 @@
 #!/bin/bash
 # ============================================================
 # UTH SEB Linux - Launcher
-# Double-click to install and run UTH Safe Exam Browser
+# Double-click to install and run UTH Safe Exam Browser on Linux
 # ============================================================
 
 REPO="https://github.com/Hhanguu/studio-web.git"
@@ -27,37 +27,50 @@ fi
 
 set -euo pipefail
 
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
+info()  { echo -e "${CYAN}[...]${NC} $*"; }
+ok()    { echo -e "${GREEN}[OK]${NC} $*"; }
+warn()  { echo -e "${YELLOW}[!]${NC} $*"; }
+fail()  { echo -e "${RED}[FAIL]${NC} $*"; exit 1; }
+
 echo ""
 echo "========================================"
-echo "  UTH SEB Linux"
+echo "  UTH SEB Linux - Kiem tra moi truong"
 echo "========================================"
 echo ""
 
 # --- Check Docker ---
-command -v docker &>/dev/null || { echo "Chua cai Docker! Chay: curl -fsSL https://get.docker.com | sh"; exit 1; }
-docker info &>/dev/null 2>&1 || { echo "Docker daemon chua chay! Chay: sudo systemctl start docker"; exit 1; }
-echo "[OK] Docker"
+command -v docker &>/dev/null || fail "Chua cai Docker! Chay: curl -fsSL https://get.docker.com | sh"
+docker info &>/dev/null 2>&1 || fail "Docker daemon chua chay! Chay: sudo systemctl start docker"
+ok "Docker"
 
 # --- Check DISPLAY ---
 if [ -z "${DISPLAY:-}" ]; then
     if [ -S "/tmp/.X11-unix/X0" ]; then
         export DISPLAY=":0"
     else
-        echo "Khong co display."; exit 1
+        fail "Khong co display (GUI)."
     fi
 fi
-echo "[OK] Display: $DISPLAY"
+ok "Display: $DISPLAY"
 
 # --- Clone or update repo ---
 if [ -d "$INSTALL_DIR/.git" ]; then
-    echo "[...] Updating repo..."
-    git -C "$INSTALL_DIR" pull --ff-only 2>/dev/null || true
+    info "Cap nhat repo..."
+    git -C "$INSTALL_DIR" pull --ff-only 2>/dev/null || warn "Khong cap nhat duoc, dung phien ban cu."
+    ok "Repo updated."
 else
-    echo "[...] Cloning $REPO..."
+    info "Cloning $REPO..."
     rm -rf "$INSTALL_DIR"
-    git clone "$REPO" "$INSTALL_DIR" || { echo "Clone that bai."; exit 1; }
+    git clone "$REPO" "$INSTALL_DIR" 2>/dev/null || fail "Clone that bai. Kiem tra internet."
+    ok "Repo cloned."
 fi
-echo "[OK] Repo ready"
 
 # --- Run installer from repo ---
+chmod +x "$INSTALL_DIR/install.sh"
 exec bash "$INSTALL_DIR/install.sh" "${1:-}"

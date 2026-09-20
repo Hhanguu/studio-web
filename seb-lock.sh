@@ -5,7 +5,7 @@
 set -e
 
 SEB_FILE=""
-if [ -n "$1" ]; then
+if [ -n "${1:-}" ]; then
     if [ -f "$1" ]; then
         SEB_FILE="$(realpath "$1")"
     elif [ -f ~/Downloads/"$1" ]; then
@@ -17,13 +17,8 @@ if [ -z "$SEB_FILE" ]; then
     SEB_FILE=$(ls -t ~/Downloads/*.seb 2>/dev/null | head -1)
 fi
 
-if [ -z "$SEB_FILE" ]; then
-    echo "Khong tim thay file .seb"
-    exit 1
-fi
-
 echo "=== UTH SEB - Full Lock Mode ==="
-echo "File: $SEB_FILE"
+[ -n "$SEB_FILE" ] && echo "File: $SEB_FILE" || echo "No .seb file (direct launch)"
 
 # === LOCK ===
 echo "Khoa phim va taskbar..."
@@ -106,22 +101,29 @@ done < <(xrandr --listmonitors | grep -v "^Monitors:")
 
 # === RUN SEB ===
 echo "Chay SEB..."
+if [ -n "$SEB_FILE" ]; then
+    SEB_ARG="/home/user/input.seb"
+    MOUNT_VOL="-v $SEB_FILE:/home/user/input.seb:ro"
+else
+    SEB_ARG=""
+    MOUNT_VOL=""
+fi
 docker run --rm \
   --user "$(id -u):$(id -g)" \
   -v "$HOME/.wine:/home/user/.wine" \
   -v "$HOME/.cache/uth-seb:/home/user/.cache" \
-  -v "$SEB_FILE:/home/user/input.seb:ro" \
+  $MOUNT_VOL \
   -v "/tmp/.X11-unix:/tmp/.X11-unix" \
   -e DISPLAY="$DISPLAY" \
   -e HOME="/home/user" \
-  uth-seb:latest bash -c '
+  uth-seb:latest bash -c "
     export HOME=/home/user
     export FONTCONFIG_PATH=/tmp
-    export DISPLAY='"$DISPLAY"'
+    export DISPLAY='$DISPLAY'
     chmod -R u+rwX /home/user/.wine 2>/dev/null || true
     mkdir -p /home/user/.cache 2>/dev/null || true
-    wine "/home/user/.wine/drive_c/Program Files/UTH/SEB/UTHSEB.exe" /home/user/input.seb 2>/dev/null
-  ' 2>&1 | grep -vE "fixme:|fontconfig|Fontconfig"
+    wine '/home/user/.wine/drive_c/Program Files/UTH/SEB/UTHSEB.exe' $SEB_ARG 2>/dev/null
+  " 2>&1 | grep -vE "fixme:|fontconfig|Fontconfig"
 
 # === RESTORE MONITORS ===
 for output in "${SAVED_OUTPUTS[@]}"; do
