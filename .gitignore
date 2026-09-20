@@ -3,3 +3,4 @@
 *.exe
 *.tar.gz
 *.deb
+.DS_Store
