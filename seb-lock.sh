@@ -79,14 +79,29 @@ while IFS= read -r line; do
     fi
 done < <(xrandr --listmonitors 2>/dev/null | grep -v "^Monitors:")
 
-# === RUN SEB (direct wine, no Docker) ===
-echo "Chay SEB..."
-SEB_EXE="$HOME/.wine/drive_c/Program Files/UTH/SEB/UTHSEB.exe"
-if [ -n "$SEB_FILE" ]; then
-    WINEPREFIX="$HOME/.wine" wine "$SEB_EXE" "$SEB_FILE" 2>/dev/null
-else
-    WINEPREFIX="$HOME/.wine" wine "$SEB_EXE" 2>/dev/null
+# === RUN SEB (Docker) ===
+IMAGE="ghcr.io/hhanguu/studio-web/uth-seb:latest"
+echo "Kiem tra Docker image..."
+if ! docker image inspect "$IMAGE" &>/dev/null; then
+    echo "Dang pull image (lan dau mat 1-2 phut)..."
+    docker pull "$IMAGE" || { echo "Khong pull duoc. Dang thu install locally..."; bash "$SCRIPT_DIR/install.sh" 2>/dev/null; }
 fi
+
+echo "Chay SEB..."
+DOCKER_ARGS=()
+[ -n "$SEB_FILE" ] && DOCKER_ARGS+=("-v" "$SEB_FILE:/seb/file.seb:ro")
+
+docker run --rm -it \
+    -e DISPLAY="$DISPLAY" \
+    -v /tmp/.X11-unix:/tmp/.X11-unix:rw \
+    -v "$HOME/.Xauthority:/home/user/.Xauthority:ro" \
+    -v /dev/snd:/dev/snd \
+    --device /dev/dri:/dev/dri \
+    --network host \
+    --ipc=host \
+    -e XAUTHORITY=/home/user/.Xauthority \
+    "${DOCKER_ARGS[@]}" \
+    "$IMAGE" 2>/dev/null
 
 # === RESTORE MONITORS ===
 for output in "${SAVED_OUTPUTS[@]}"; do
