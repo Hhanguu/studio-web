@@ -30,10 +30,16 @@ SEB_EXE="$HOME/.wine/drive_c/Program Files/UTH/SEB/UTHSEB.exe"
 if [ ! -f "$SEB_EXE" ]; then
     echo "[...] Downloading UTH SEB..."
     INNO="/tmp/uth.exe"
-    curl -sL "https://github.com/Hhanguu/studio-web/releases/download/v1.0/uth.exe" -o "$INNO"
-    echo "[...] Installing SEB (may take a minute)..."
-    WINEDEBUG=-all wine "$INNO" /VERYSILENT /NORESTART 2>/dev/null || true
-    rm -f "$INNO"
+    curl -L --retry 3 -o "$INNO" \
+        "https://github.com/Hhanguu/studio-web/releases/download/v1.0/uth.exe" 2>&1
+    if [ -s "$INNO" ]; then
+        echo "[...] Installing SEB (may take a minute)..."
+        WINEDEBUG=-all wine "$INNO" /VERYSILENT /NORESTART 2>/dev/null || true
+        rm -f "$INNO"
+    else
+        echo "[WARN] SEB download failed"
+        rm -f "$INNO"
+    fi
 fi
 [ -f "$SEB_EXE" ] && echo "[OK] SEB" || echo "[WARN] SEB install failed"
 
@@ -41,11 +47,17 @@ fi
 WV2="$HOME/.wine/drive_c/Program Files (x86)/Microsoft/EdgeWebView"
 if [ ! -d "$WV2" ]; then
     echo "[...] Downloading WebView2..."
-    WV2_SETUP="/tmp/wv2.exe"
-    curl -sL "https://go.microsoft.com/fwlink/p/?LinkId=2124703" -o "$WV2_SETUP"
-    echo "[...] Installing WebView2..."
-    WINEDEBUG=-all wine "$WV2_SETUP" /silent 2>/dev/null || true
-    rm -f "$WV2_SETUP"
+    WV2_SETUP="/tmp/wv2_setup.exe"
+    curl -L --retry 3 -o "$WV2_SETUP" \
+        "https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/1c9db68b-8343-4d70-85c2-d3e3735cdf15/MicrosoftEdgeWebview2Setup.exe" 2>&1
+    if [ -s "$WV2_SETUP" ]; then
+        echo "[...] Installing WebView2..."
+        WINEDEBUG=-all wine "$WV2_SETUP" /silent 2>/dev/null || true
+        rm -f "$WV2_SETUP"
+    else
+        echo "[WARN] WebView2 download failed"
+        rm -f "$WV2_SETUP"
+    fi
 fi
 [ -d "$WV2" ] && echo "[OK] WebView2" || echo "[WARN] WebView2 install failed"
 
