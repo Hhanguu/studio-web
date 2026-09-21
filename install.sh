@@ -49,10 +49,14 @@ if [ ! -d "$WV2" ]; then
     echo "[...] Downloading WebView2..."
     WV2_SETUP="/tmp/wv2_setup.exe"
     curl -L --retry 3 -o "$WV2_SETUP" \
-        "https://msedge.sf.dl.delivery.mp.microsoft.com/filestreamingservice/files/1c9db68b-8343-4d70-85c2-d3e3735cdf15/MicrosoftEdgeWebview2Setup.exe" 2>&1
+        "https://go.microsoft.com/fwlink/p/?LinkId=2124703" 2>&1
     if [ -s "$WV2_SETUP" ]; then
         echo "[...] Installing WebView2..."
-        WINEDEBUG=-all wine "$WV2_SETUP" /silent 2>/dev/null || true
+        if command -v xvfb-run &>/dev/null; then
+            xvfb-run --auto-servernum WINEDEBUG=-all wine "$WV2_SETUP" /silent 2>/dev/null || true
+        else
+            WINEDEBUG=-all wine "$WV2_SETUP" /silent 2>/dev/null || true
+        fi
         rm -f "$WV2_SETUP"
     else
         echo "[WARN] WebView2 download failed"
@@ -61,9 +65,10 @@ if [ ! -d "$WV2" ]; then
 fi
 [ -d "$WV2" ] && echo "[OK] WebView2" || echo "[WARN] WebView2 install failed"
 
-# 5. Install xfce4-panel (for keyboard locking)
+# 5. Install dependencies (xvfb for headless installs, xfce for locking)
+echo "[...] Installing dependencies..."
+sudo apt-get install -y -qq xvfb 2>/dev/null || true
 if ! command -v xfconf-query &>/dev/null; then
-    echo "[...] Installing xfce4..."
     sudo apt-get install -y -qq xfce4 xfce4-panel 2>/dev/null
 fi
 
