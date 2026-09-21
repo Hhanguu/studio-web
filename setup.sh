@@ -1,8 +1,7 @@
 #!/bin/bash
 # ============================================================
 # UTH SEB Linux - Offline Setup
-# Extract wine prefix + SEB + WebView2, create launcher
-# Run this after downloading from Google Drive
+# No Docker. Wine + SEB + WebView2.
 # ============================================================
 set -euo pipefail
 
@@ -28,34 +27,42 @@ echo "  UTH SEB Linux - Offline Setup"
 echo "========================================"
 echo ""
 
-# --- Check Docker ---
-command -v docker &>/dev/null || fail "Chua cai Docker! Chay: curl -fsSL https://get.docker.com | sh"
-docker info &>/dev/null 2>&1 || fail "Docker daemon chua chay! Chay: sudo systemctl start docker"
-ok "Docker"
+# --- Check wine ---
+command -v wine &>/dev/null || fail "Chua cai wine! Chay: sudo apt install wine64"
+ok "Wine: $(wine --version 2>/dev/null || echo 'installed')"
 
-# --- Check DISPLAY ---
+# --- Check display ---
 if [ -z "${DISPLAY:-}" ]; then
     [ -S "/tmp/.X11-unix/X0" ] && export DISPLAY=":0" || fail "Khong co display."
 fi
 ok "Display: $DISPLAY"
 
-# --- Extract wine prefix ---
-WINE_ARCHIVE="$SCRIPT_DIR/uth-seb-wine.tar.gz"
-if [ -f "$WINE_ARCHIVE" ]; then
-    info "Extracting wine prefix + SEB + WebView2 (may take a while)..."
-    tar -xzf "$WINE_ARCHIVE" -C "$HOME/" 2>/dev/null
-    ok "Wine prefix extracted"
+# --- Init wine prefix (creates windows/, fonts, etc.) ---
+if [ -d "$HOME/.wine/drive_c/windows" ]; then
+    ok "Wine prefix already exists"
 else
-    fail "Cannot find uth-seb-wine.tar.gz in $SCRIPT_DIR"
+    info "Initializing wine prefix..."
+    WINEARCH=win64 WINEPREFIX="$HOME/.wine" WINEDEBUG=-all wineboot --init 2>/dev/null || true
+    ok "Wine prefix initialized"
 fi
 
-# --- Fix wine permissions ---
+# --- Extract SEB + WebView2 on top of wine prefix ---
+WINE_ARCHIVE="$SCRIPT_DIR/uth-seb-wine.tar.gz"
+if [ -f "$WINE_ARCHIVE" ]; then
+    info "Extracting SEB + WebView2 into wine prefix..."
+    tar -xzf "$WINE_ARCHIVE" -C "$HOME/"
+    ok "SEB + WebView2 extracted"
+else
+    fail "Cannot find uth-seb-wine.tar.gz"
+fi
+
+# --- Fix permissions ---
 chmod -R u+rwX "$HOME/.wine" 2>/dev/null || true
-ok "Wine permissions fixed"
+ok "Wine permissions"
 
 # --- Check SEB ---
 SEB_EXE="$HOME/.wine/drive_c/Program Files/UTH/SEB/UTHSEB.exe"
-[ -f "$SEB_EXE" ] && ok "SEB: UTHSEB.exe" || fail "SEB not found after extract"
+[ -f "$SEB_EXE" ] && ok "SEB: UTHSEB.exe" || fail "SEB not found"
 
 # --- Check WebView2 ---
 WV2=$(find "$HOME/.wine/drive_c/Program Files (x86)/Microsoft/EdgeWebView/Application" -name "msedgewebview2.exe" 2>/dev/null | head -1)
@@ -80,26 +87,27 @@ else
     rm -rf "$TMPDIR"
 fi
 
-# --- Create launcher ---
+# --- Copy scripts ---
+mkdir -p "$HOME/.uth-seb"
+for f in seb-lock.sh toggle_gemini.sh; do
+    [ -f "$SCRIPT_DIR/$f" ] && cp "$SCRIPT_DIR/$f" "$HOME/.uth-seb/"
+done
+chmod +x "$HOME/.uth-seb/"*.sh 2>/dev/null || true
+ok "Scripts copied"
+
+# --- Create uth launcher ---
 mkdir -p "$LOCAL_BIN"
 cat > "$LOCAL_BIN/uth" << 'LAUNCHER'
 #!/bin/bash
+export LD_LIBRARY_PATH="$HOME/.local/lib:${LD_LIBRARY_PATH:-}"
 exec bash "$HOME/.uth-seb/seb-lock.sh" "$@"
 LAUNCHER
 chmod +x "$LOCAL_BIN/uth"
-ok "Launcher: uth"
+ok "Launcher: ~/.local/bin/uth"
 
-# --- Copy scripts to ~/.uth-seb ---
-mkdir -p "$HOME/.uth-seb"
-for f in seb-lock.sh toggle_gemini.sh install.sh; do
-    [ -f "$SCRIPT_DIR/$f" ] && cp "$SCRIPT_DIR/$f" "$HOME/.uth-seb/"
-done
-chmod +x "$HOME/.uth-seb/"*.sh 2>/dev/null
-ok "Scripts copied"
-
-# --- Ensure PATH ---
+# --- PATH ---
 if ! echo "$PATH" | grep -q "$LOCAL_BIN"; then
-    echo "export PATH=\"\$HOME/.local/bin:\$PATH\"" >> "$HOME/.bashrc"
+    echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$HOME/.bashrc"
     export PATH="$LOCAL_BIN:$PATH"
     warn "Added ~/.local/bin to PATH (restart terminal)"
 fi
@@ -119,14 +127,8 @@ DESKTOP
 chmod +x "$DOTFILES/uth-seb.desktop"
 ok "Desktop shortcut"
 
-# --- xhost ---
-xhost +local:docker 2>/dev/null || true
-
 echo ""
 echo -e "${GREEN}============================================================${NC}"
-echo -e "${GREEN}  Setup complete! Chay SEB ngay...${NC}"
+echo -e "${GREEN}  Done! Chay: uth${NC}"
 echo -e "${GREEN}============================================================${NC}"
 echo ""
-
-# --- Run SEB ---
-exec bash "$HOME/.uth-seb/seb-lock.sh" "${1:-}"
